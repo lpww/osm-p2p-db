@@ -40,7 +40,8 @@ function DB (opts) {
     map: function (row, next) {
       if (!row.value) return null
       var v = row.value.v, d = row.value.d
-      if (v && v.lat !== undefined && v.lon !== undefined) {
+      var k = row.value.k
+      if (k && v.lat !== undefined && v.lon !== undefined) {
         next(null, { type: 'put', point: ptf(v) })
       } else if (d && Array.isArray(row.value.points)) {
         next(null, { type: 'del', points: row.value.points.map(ptf) })
@@ -166,6 +167,7 @@ DB.prototype.del = function (key, opts, cb) {
   cb = once(cb || noop)
   self._del(key, opts, function (err, rows) {
     if (err) return cb(err)
+
     self.batch(rows, opts, function (err, nodes) {
       if (err) cb(err)
       else cb(null, nodes[0])
@@ -198,6 +200,14 @@ DB.prototype._del = function (key, opts, cb) {
         fields.refs.push.apply(fields.refs, v.refs)
       }
     })
+
+    // Use opts.value to set a value on hyperkv deletions.
+    if (opts.value) {
+      fields = xtend(fields, {
+        v: opts.value
+      })
+    }
+
     cb(null, [ { type: 'del', key: key, links: links, fields: fields } ])
   })
 }
